@@ -4,9 +4,9 @@ import pandas as pd
 import joblib
 
 # Load model and tools
-model = joblib.load("models\optimized_rf_model.pkl")
-scaler = joblib.load("models\scaler.pkl")
-input_columns = joblib.load("models\input_columns.pkl")
+model = joblib.load("models/optimized_rf_model.pkl")
+scaler = joblib.load("models/scaler.pkl")
+input_columns = joblib.load("models/input_columns.pkl")
 
 # Threshold from training (adjusted manually or via PR-curve)
 best_threshold = 0.32
