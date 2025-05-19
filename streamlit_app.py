@@ -3,11 +3,11 @@ import pandas as pd
 import joblib
 
 # Başlık
-st.title("💰 Bank Term Deposit Prediction")
+st.title(" Bank Term Deposit Prediction")
 st.write("Bu uygulama, bir müşterinin bankanın vadeli mevduat teklifini kabul edip etmeyeceğini tahmin eder.")
 
 # Modeli yükle
-model = joblib.load("catboost_pipeline.pkl")
+model = joblib.load("optimized_rf_model.pkl")
 
 # Kullanıcıdan veri al
 def user_input():
@@ -55,6 +55,6 @@ input_df = user_input()
 if st.button("Tahmin Et"):
     prediction = model.predict(input_df)[0]
     if prediction == 1:
-        st.success("✅ Bu müşteri Vade Mevduat teklifini KABUL EDEBİLİR.")
+        st.success(" Bu müşteri Vade Mevduat teklifini KABUL EDEBİLİR.")
     else:
-        st.error("❌ Bu müşteri Vade Mevduat teklifini büyük ihtimalle REDDEDECEK.")
+        st.error(" Bu müşteri Vade Mevduat teklifini büyük ihtimalle REDDEDECEK.")
