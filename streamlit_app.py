@@ -1,60 +1,101 @@
 import streamlit as st
+import numpy as np
 import pandas as pd
 import joblib
 
-# Başlık
-st.title(" Bank Term Deposit Prediction")
-st.write("Bu uygulama, bir müşterinin bankanın vadeli mevduat teklifini kabul edip etmeyeceğini tahmin eder.")
-
-# Modeli yükle
+# Load model and tools
 model = joblib.load("optimized_rf_model.pkl")
+scaler = joblib.load("scaler.pkl")
+input_columns = joblib.load("input_columns.pkl")
 
-# Kullanıcıdan veri al
-def user_input():
-    age = st.slider("Age", 18, 95, 30)
-    job = st.selectbox("Job", ['admin.', 'blue-collar', 'entrepreneur', 'housemaid', 'management',
-                               'retired', 'self-employed', 'services', 'student', 'technician', 'unemployed'])
-    marital = st.selectbox("Marital Status", ['married', 'single', 'divorced'])
-    education = st.selectbox("Education", ['basic.4y', 'basic.6y', 'basic.9y', 'high.school',
-                                           'professional.course', 'university.degree', 'illiterate'])
-    default = st.selectbox("Has Credit in Default?", ['no', 'yes'])
-    housing = st.selectbox("Has Housing Loan?", ['no', 'yes'])
-    loan = st.selectbox("Has Personal Loan?", ['no', 'yes'])
-    contact = st.selectbox("Contact Type", ['cellular', 'telephone'])
-    month = st.selectbox("Last Contact Month", ['mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'])
-    day_of_week = st.selectbox("Last Contact Day", ['mon', 'tue', 'wed', 'thu', 'fri'])
+# Threshold from training (adjusted manually or via PR-curve)
+best_threshold = 0.32
 
-    duration = st.slider("Last Contact Duration (s)", 0, 5000, 300)
-    campaign = st.slider("Number of Contacts", 1, 50, 1)
-    pdays = st.slider("Days Since Last Contact", 0, 999, 999)
-    previous = st.slider("Previous Contacts", 0, 10, 0)
-    poutcome = st.selectbox("Previous Campaign Outcome", ['nonexistent', 'failure', 'success'])
+# Hardcoded class options instead of LabelEncoder (based on training data)
+job_options = ["admin.", "blue-collar", "entrepreneur", "housemaid", "management", "retired", "self-employed", "services", "student", "technician", "unemployed"]
+marital_options = ["divorced", "married", "single"]
+education_options = ["basic.4y", "basic.6y", "basic.9y", "high.school", "illiterate", "professional.course", "university.degree"]
+default_options = ["no", "yes"]
+housing_options = ["no", "yes"]
+loan_options = ["no", "yes"]
+contact_options = ["cellular", "telephone"]
+month_options = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+day_options = ["mon", "tue", "wed", "thu", "fri"]
+poutcome_options = ["failure", "nonexistent", "success"]
 
-    emp_var_rate = st.slider("Employment Variation Rate", -3.0, 2.0, 0.0)
-    cons_price_idx = st.slider("Consumer Price Index", 92.0, 95.0, 93.0)
-    cons_conf_idx = st.slider("Consumer Confidence Index", -50.0, -20.0, -40.0)
-    euribor3m = st.slider("Euribor 3 Month Rate", 0.5, 5.0, 3.0)
-    nr_employed = st.slider("Number of Employees", 4900.0, 5300.0, 5000.0)
+# Streamlit UI
+st.set_page_config(page_title="Bank Subscription Predictor", layout="centered")
+st.title("💼 Bank Marketing Subscription Prediction")
+st.markdown("""
+This AI-powered tool predicts whether a client is likely to subscribe to a term deposit based on their profile and past campaign data.
+""")
 
-    # Verileri DataFrame olarak döndür
-    data = {
-        'age': age, 'job': job, 'marital': marital, 'education': education,
-        'default': default, 'housing': housing, 'loan': loan, 'contact': contact,
-        'month': month, 'day_of_week': day_of_week, 'duration': duration,
-        'campaign': campaign, 'pdays': pdays, 'previous': previous,
-        'poutcome': poutcome, 'emp.var.rate': emp_var_rate,
-        'cons.price.idx': cons_price_idx, 'cons.conf.idx': cons_conf_idx,
-        'euribor3m': euribor3m, 'nr.employed': nr_employed
+# Form inputs
+with st.form("subscription_form"):
+    col1, col2 = st.columns(2)
+    with col1:
+        age = st.number_input("Age", 18, 100, 30)
+        job = st.selectbox("Job", job_options)
+        marital = st.selectbox("Marital Status", marital_options)
+        education = st.selectbox("Education", education_options)
+        default = st.selectbox("Credit in Default", default_options)
+        housing = st.selectbox("Housing Loan", housing_options)
+        loan = st.selectbox("Personal Loan", loan_options)
+        contact = st.selectbox("Contact Type", contact_options)
+    with col2:
+        month = st.selectbox("Last Contact Month", month_options)
+        day = st.selectbox("Last Contact Day", day_options)
+        duration = st.number_input("Contact Duration (sec)", 0, 5000, 100)
+        campaign = st.number_input("Campaign Contacts", 1, 100, 1)
+        pdays = st.number_input("Days Since Last Contact", 0, 999, 999)
+        previous = st.number_input("Previous Contacts", 0, 100, 0)
+        poutcome = st.selectbox("Previous Outcome", poutcome_options)
+        emp_var_rate = st.number_input("Employment Variation Rate", -5.0, 5.0, 1.1)
+        cons_price_idx = st.number_input("Consumer Price Index", 90.0, 100.0, 93.2)
+        cons_conf_idx = st.number_input("Consumer Confidence Index", -60.0, 0.0, -36.4)
+        euribor3m = st.number_input("Euribor 3 Month Rate", 0.0, 10.0, 4.8)
+        nr_employed = st.number_input("Number of Employees", 4000.0, 6000.0, 5191.0)
+
+    submitted = st.form_submit_button("Predict")
+
+# Prediction logic
+if submitted:
+    input_dict = {
+        'age': age,
+        'job': job_options.index(job),
+        'marital': marital_options.index(marital),
+        'education': education_options.index(education),
+        'default': default_options.index(default),
+        'housing': housing_options.index(housing),
+        'loan': loan_options.index(loan),
+        'contact': contact_options.index(contact),
+        'month': month_options.index(month),
+        'day_of_week': day_options.index(day),
+        'duration': duration,
+        'campaign': campaign,
+        'pdays': pdays,
+        'previous': previous,
+        'poutcome': poutcome_options.index(poutcome),
+        'emp.var.rate': emp_var_rate,
+        'cons.price.idx': cons_price_idx,
+        'cons.conf.idx': cons_conf_idx,
+        'euribor3m': euribor3m,
+        'nr.employed': nr_employed,
+        'campaign_per_previous': campaign / (previous + 1),
+        'contact_month_combo': 0,  # unused in this version
+        'loan_and_housing': 0     # unused in this version
     }
-    return pd.DataFrame([data])
 
-# Kullanıcı verisi al
-input_df = user_input()
+    input_df = pd.DataFrame([input_dict], columns=input_columns)
+    input_df_scaled = scaler.transform(input_df)
+    proba = model.predict_proba(input_df_scaled)[0][1]
 
-# Tahmin
-if st.button("Tahmin Et"):
-    prediction = model.predict(input_df)[0]
+    prediction = model.predict(input_df_scaled)[0]
+    proba = model.predict_proba(input_df_scaled)[0][1]
+
+
+    st.subheader("Prediction Result")
     if prediction == 1:
-        st.success(" Bu müşteri Vade Mevduat teklifini KABUL EDEBİLİR.")
+        st.success(f"The client is likely to SUBSCRIBE. Probability: {proba:.2f}")
     else:
-        st.error(" Bu müşteri Vade Mevduat teklifini büyük ihtimalle REDDEDECEK.")
+        st.error(f"The client is NOT likely to subscribe. Probability: {proba:.2f}")
