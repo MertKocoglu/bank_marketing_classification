@@ -1,0 +1,7 @@
+streamlit
+optuna
+pandas
+scikit-learn
+catboost
+xgboost
+joblib
