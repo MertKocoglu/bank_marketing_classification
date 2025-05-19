@@ -4,9 +4,9 @@ import pandas as pd
 import joblib
 
 # Load model and tools
-model = joblib.load("optimized_rf_model.pkl")
-scaler = joblib.load("scaler.pkl")
-input_columns = joblib.load("input_columns.pkl")
+model = joblib.load("models\optimized_rf_model.pkl")
+scaler = joblib.load("models\scaler.pkl")
+input_columns = joblib.load("models\input_columns.pkl")
 
 # Threshold from training (adjusted manually or via PR-curve)
 best_threshold = 0.32
@@ -25,7 +25,7 @@ poutcome_options = ["failure", "nonexistent", "success"]
 
 # Streamlit UI
 st.set_page_config(page_title="Bank Subscription Predictor", layout="centered")
-st.title("💼 Bank Marketing Subscription Prediction")
+st.title("Bank Marketing Subscription Prediction")
 st.markdown("""
 This AI-powered tool predicts whether a client is likely to subscribe to a term deposit based on their profile and past campaign data.
 """)
